@@ -3,265 +3,130 @@ import pandas as pd
 import numpy as np
 import xgboost as xgb
 import plotly.express as px
-import plotly.graph_objects as go
 
 # --- CONFIG ---
-st.set_page_config(page_title="Credit Collectibility Predictor", layout="wide")
-
-# --- CUSTOM CSS ---
-st.markdown("""
-    <style>
-    [data-testid="stSidebarNav"] {display: none;}
-    
-    /* Style Tombol Navigasi Sidebar */
-    [data-testid="stSidebar"] .stButton button {
-        width: 100%;
-        border-radius: 8px;
-        border: none;
-        background-color: transparent;
-        text-align: left;
-        padding: 12px 20px;
-        font-size: 16px;
-        color: #31333F;
-        transition: 0.3s;
-        margin-bottom: 5px;
-    }
-    [data-testid="stSidebar"] .stButton button:hover {
-        background-color: #e9ecef;
-        border: none;
-    }
-    
-    /* Container Metric Card */
-    .stMetric {
-        background-color: #ffffff;
-        border: 1px solid #e0e0e0;
-        padding: 15px;
-        border-radius: 12px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+st.set_page_config(page_title="Credit Collectibility Predictor v2", layout="wide")
 
 # --- LOAD DATA & MODEL ---
 @st.cache_data
 def load_ref():
+    # Digunakan untuk menghitung qcut (persentil) secara dinamis
     return pd.read_csv('Data TA (Kredit).csv')
 
 @st.cache_resource
 def load_xgb_model():
     model = xgb.XGBClassifier()
-    model.load_model('model_xgb.json')
+    model.load_model('model_xgb_newest_one.json') # Gunakan model terbaru
     return model
 
+# Daftar FCode sesuai LabelEncoder di notebook kamu
 fcode_list = ["CA001", "CCB03", "CS0I1", "KJ001", "KJ002", "KJ003", "KJ004", "KJ006", "KJ007", "KK0A5", "KK0B5", "KP001", "KP003", "KP007", "KP07A", "MG001", "MJ008", "RK007"]
 
+# Fungsi Helper untuk Kategorisasi (1-10) berdasarkan data referensi
 def get_qcut_label(value, series):
     combined = pd.concat([series, pd.Series([value])], ignore_index=True)
     labels = pd.qcut(combined.rank(method='first'), 10, labels=range(1, 11))
     return int(labels.iloc[-1])
 
-# --- SESSION STATE NAVIGASI ---
-if 'menu' not in st.session_state:
-    st.session_state.menu = "🏠 Home"
+# Fungsi hitung sisa tenor (karena input user adalah tanggal atau bulan)
+def calculate_sisa_tenor(target_date_str):
+    target = pd.to_datetime('2025-12-31')
+    current = pd.to_datetime(target_date_str)
+    diff = (current - target).days / 30
+    return max(0, diff)
 
-def set_menu(name):
-    st.session_state.menu = name
-
-# --- SIDEBAR (TANPA BULAT-BULAT) ---
-with st.sidebar:
-    st.title("Credit Collectibility Predictor")
-    st.markdown("---")
-    if st.button("🏠 Home"): set_menu("🏠 Home")
-    if st.button("🔍 Prediksi & Output"): set_menu("🔍 Prediksi & Output")
-    if st.button("📈 Analytics Dashboard"): set_menu("📈 Analytics Dashboard")
-    if st.button("🧠 Feature Insights"): set_menu("🧠 Feature Insights")
-    st.markdown("---")
-    st.caption("Dibuat untuk Keperluan Tugas Akhir")
-
+# --- LOAD RESOURCES ---
 df_ref = load_ref()
+# Hitung sisa tenor referensi untuk qcut sisa tenor
+df_ref['Sisa_Tenor_Ref'] = (pd.to_datetime(df_ref['MatDate']) - pd.to_datetime('2025-12-31')).dt.days / 30
+df_ref['Sisa_Tenor_Ref'] = df_ref['Sisa_Tenor_Ref'].apply(lambda x: x if x > 0 else 0)
+
 model = load_xgb_model()
-menu = st.session_state.menu
 
-# ==========================================
-# LAMAN 1: HOME
-# ==========================================
+# --- SIDEBAR NAVIGATION ---
+st.sidebar.title("Navigation")
+menu = st.sidebar.radio("Pilih Menu:", ["🏠 Home", "🔍 Prediksi Tunggal", "📈 Analytics & Insights"])
+
 if menu == "🏠 Home":
-    st.title("🏦 Credit Collectibility Predictor")
-    st.write("Navigasikan sistem menggunakan tombol di sidebar untuk memulai analisis.")
+    st.title("🏦 Credit Risk Predictor (Updated Version)")
+    st.write("Sistem ini telah diperbarui dengan fitur: **effRate, Angsuran, dan Sisa Tenor.**")
     
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.metric("Total Sampel Data", f"{len(df_ref):,}")
-    with col_b:
-        st.metric("Model yang Digunakan", "XGBoost Classifier")
-    
-    st.info("Sistem ini memprediksi status kolektibilitas nasabah (1-5) berdasarkan fitur finansial utama.")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Fitur Input", "7 Variabel")
+    col2.metric("Metode Binning", "Quantile 1-10")
+    col3.metric("Algorithm", "XGBoost")
 
-# ==========================================
-# LAMAN 2: PREDIKSI & OUTPUT
-# ==========================================
-
-elif menu == "🔍 Prediksi & Output":
-    st.title("🔍 Prediksi Collectibility")
-    t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
+elif menu == "🔍 Prediksi Tunggal":
+    st.title("🔍 Prediksi Input Tunggal")
     
-    # --- TAB 1: SINGLE INPUT ---
-    with t1:
-        with st.form("form_p"):
-            c1, c2 = st.columns(2)
-            f_in = c1.selectbox("Pilih FCode", fcode_list)
-            os_in = c1.number_input("Nominal OS", value=140562406.0)
-            disb_in = c2.number_input("Nominal Disbursement", value=210000000.0)
-            saldo_in = c2.number_input("Nominal Saldo", value=2530133.0)
-            btn = st.form_submit_button("Cek Collectibility")
+    with st.form("prediction_form"):
+        c1, c2 = st.columns(2)
+        
+        # Kolom Kiri
+        f_in = c1.selectbox("Pilih FCode", fcode_list)
+        eff_in = c1.number_input("Suku Bunga (effRate %)", min_value=0.0, max_value=100.0, value=11.0)
+        os_in = c1.number_input("Nominal Outstanding (OS)", value=50000000.0)
+        disb_in = c1.number_input("Nominal Disbursement", value=100000000.0)
+        
+        # Kolom Kanan
+        saldo_in = c2.number_input("Nominal Saldo Rekening", value=5000000.0)
+        angsuran_in = c2.number_input("Nominal Angsuran Bulanan", value=2500000.0)
+        matdate_in = c2.date_input("Tanggal Jatuh Tempo (Maturity Date)", value=pd.to_datetime('2026-12-31'))
+        
+        submit = st.form_submit_button("Analisis Risiko Nasabah")
+    
+    if submit:
+        # --- PREPROCESSING ---
+        # 1. Encoding FCode
+        f_enc = fcode_list.index(f_in) + 1
+        
+        # 2. Perhitungan Sisa Tenor Mentah
+        sisa_tenor_raw = (pd.to_datetime(matdate_in) - pd.to_datetime('2025-12-31')).days / 30
+        sisa_tenor_raw = max(0, sisa_tenor_raw)
+        
+        # 3. Binning 1-10 (Sesuai model training)
+        os_cat = get_qcut_label(os_in, df_ref['OS'])
+        disb_cat = get_qcut_label(disb_in, df_ref['Disb'])
+        saldo_cat = get_qcut_label(saldo_in, df_ref['Saldo_Rekening'])
+        angsuran_cat = get_qcut_label(angsuran_in, df_ref['Angsuran'])
+        tenor_cat = get_qcut_label(sisa_tenor_raw, df_ref['Sisa_Tenor_Ref'])
+        
+        # --- MATCHING FEATURE ORDER (Sesuai urutan di notebook) ---
+        # ['FCode','effRate','OS (Category)','Disb (Category)','Saldo (Category)','Angsuran (Category)','Sisa_Tenor (Category)']
+        X_input = pd.DataFrame([[
+            f_enc, eff_in, os_cat, disb_cat, saldo_cat, angsuran_cat, tenor_cat
+        ]], columns=['FCode', 'effRate', 'OS (Category)', 'Disb (Category)', 'Saldo (Category)', 'Angsuran (Category)', 'Sisa_Tenor (Category)'])
+        
+        # --- PREDICTION ---
+        pred_class = model.predict(X_input)[0] + 1
+        
+        # Tampilan Hasil
+        st.subheader("Hasil Analisis:")
+        if pred_class == 1:
+            st.success(f"NASABAH LANCAR (Kolektibilitas {pred_class})")
+        elif pred_class == 2:
+            st.warning(f"DALAM PERHATIAN KHUSUS (Kolektibilitas {pred_class})")
+        else:
+            st.error(f"NON-PERFORMING LOAN / MACET (Kolektibilitas {pred_class})")
             
-        if btn:
-            f_enc = fcode_list.index(f_in) + 1
-            os_c = get_qcut_label(os_in, df_ref['OS'])
-            disb_c = get_qcut_label(disb_in, df_ref['Disb'])
-            saldo_c = get_qcut_label(saldo_in, df_ref['Saldo_Rekening'])
-            X = pd.DataFrame([[f_enc, os_c, disb_c, saldo_c]], columns=['FCode', 'OS (Category)', 'Disb (Category)', 'Saldo (Category)'])
-            pred = model.predict(X)[0] + 1
-            
-            if pred == 1: bg, txt, status = "#D4EDDA", "#155724", "LANCAR"
-            elif pred <= 4: bg, txt, status = "#FFF3CD", "#856404", "DALAM PENGAWASAN (DPK)"
-            else: bg, txt, status = "#F8D7DA", "#721C24", "NON-PERFORMING LOAN (NPL) ATAU MACET"
+        # Tampilkan Nilai Kategori (untuk transparansi data)
+        with st.expander("Lihat Detail Kategorisasi (Binning 1-10)"):
+            st.write(X_input)
 
-            st.markdown(f"""
-                <div style="background-color: {bg}; padding: 35px; border-radius: 15px; border: 1px solid {txt}33; text-align: center;">
-                    <p style="color: {txt}; font-size: 18px; font-weight: bold; margin: 0;">HASIL PREDIKSI</p>
-                    <h1 style="color: {txt}; font-size: 64px; margin: 10px 0;">Collectibility {pred}</h1>
-                    <p style="color: {txt}; font-size: 26px; font-weight: 500; margin: 0;">{status}</p>
-                </div>
-            """, unsafe_allow_html=True)
-
-    # --- TAB 2: BATCH UPLOAD ---
-    with t2:
-        st.subheader("Upload Batch File (CSV)")
-        st.write("Pastikan file memiliki kolom: `FCode`, `OS`, `Disb`, `Saldo_Rekening`")
-        
-        up_file = st.file_uploader("Pilih file CSV", type="csv")
-        
-        if up_file is not None:
-            df_up = pd.read_csv(up_file)
-            st.write("Preview Data yang Di-upload:")
-            st.dataframe(df_up.head())
-            
-            if st.button("Cek Collectibility"):
-                results = []
-                # Loading bar untuk estetika
-                progress_bar = st.progress(0)
-                
-                for i, row in df_up.iterrows():
-                    # 1. Encoding FCode
-                    f_val = fcode_list.index(row['FCode']) + 1 if row['FCode'] in fcode_list else 1
-                    # 2. Transformasi ke Kategori (Percentile)
-                    os_c = get_qcut_label(row['OS'], df_ref['OS'])
-                    disb_c = get_qcut_label(row['Disb'], df_ref['Disb'])
-                    saldo_c = get_qcut_label(row['Saldo_Rekening'], df_ref['Saldo_Rekening'])
-                    
-                    # 3. Predict
-                    X_batch = pd.DataFrame([[f_val, os_c, disb_c, saldo_c]], 
-                                          columns=['FCode', 'OS (Category)', 'Disb (Category)', 'Saldo (Category)'])
-                    p = model.predict(X_batch)[0] + 1
-                    results.append(p)
-                    
-                    # Update progress bar
-                    progress_bar.progress((i + 1) / len(df_up))
-                
-                # Tambahkan hasil ke dataframe
-                df_up['Prediksi_Collectibility'] = results
-                
-                st.success(f"Berhasil memproses {len(df_up)} data nasabah!")
-                st.dataframe(df_up)
-                
-                # Fitur Download Hasil
-                csv_download = df_up.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Download Hasil Prediksi (CSV)",
-                    data=csv_download,
-                    file_name="hasil_prediksi_batch.csv",
-                    mime="text/csv"
-                )
-# ==========================================
-# LAMAN 3: ANALYTICS
-# ==========================================
-elif menu == "📈 Analytics Dashboard":
-    st.title("📈 Strategic Risk Dashboard")
+elif menu == "📈 Analytics & Insights":
+    st.title("📈 Model Insights")
     
-    # --- 1. METRICS ROW (Tetap) ---
-    c1, c2, c3 = st.columns(3)
-    total_os = df_ref['OS'].sum()
-    total_saldo = df_ref['Saldo_Rekening'].sum()
-    c1.metric("Total Outstanding", f"Rp {total_os/1e9:.1f} M")
-    c2.metric("Total Dana Nasabah", f"Rp {total_saldo/1e9:.1f} M")
-    c3.metric("Basis Nasabah", f"{len(df_ref):,} Orang")
-
-    st.divider()
-
-    # --- 2. PREDIKSI PERSENTASE COLL (PERBAIKAN LOGIKA) ---
-    st.subheader("🎯 Credit Collectibility Prediction Percentage")
-    
-    # Menyiapkan data untuk prediksi massal
-    df_batch = df_ref.head(1181).copy()
-    
-    try:
-        X_mass = pd.DataFrame()
-        # 1. Encode FCode jadi angka urutan
-        X_mass['FCode'] = df_batch['FCode'].apply(lambda x: fcode_list.index(x) + 1 if x in fcode_list else 1)
-        
-        # 2. Ubah OS, Disb, Saldo jadi kategori 1-10 (Pakai fungsi get_qcut_label yang sudah ada)
-        X_mass['OS (Category)'] = df_batch['OS'].apply(lambda x: get_qcut_label(x, df_ref['OS']))
-        X_mass['Disb (Category)'] = df_batch['Disb'].apply(lambda x: get_qcut_label(x, df_ref['Disb']))
-        X_mass['Saldo (Category)'] = df_batch['Saldo_Rekening'].apply(lambda x: get_qcut_label(x, df_ref['Saldo_Rekening']))
-        
-        # 3. Jalankan Prediksi
-        mass_preds = model.predict(X_mass) + 1
-        pred_counts = pd.Series(mass_preds).value_counts(normalize=True).sort_index() * 100
-        
-        # Tampilkan kotak persentase
-        cols = st.columns(5)
-        coll_names = ["Coll 1", "Coll 2", "Coll 3", "Coll 4", "Coll 5"]
-        coll_colors = ["#2ecc71", "#f1c40f", "#e67e22", "#d35400", "#e74c3c"]
-        
-        for i in range(5):
-            val = pred_counts.get(i+1, 0)
-            cols[i].markdown(f"""
-                <div style="background-color:{coll_colors[i]}22; border-left:5px solid {coll_colors[i]}; padding:10px; border-radius:5px; text-align:center">
-                    <p style="margin:0; font-size:12px; font-weight:bold; color:{coll_colors[i]}">{coll_names[i]}</p>
-                    <h3 style="margin:0; color:{coll_colors[i]}">{val:.1f}%</h3>
-                </div>
-            """, unsafe_allow_html=True)
-            
-        npl_rate = pred_counts.get(3,0) + pred_counts.get(4,0) + pred_counts.get(5,0)
-        st.write("")
-        st.warning(f"⚠️ **Proyeksi NPL (Non-Performing Loan): {npl_rate:.2f}%**")
-        
-    except Exception as e:
-        st.error(f"Gagal memproses prediksi massal: {e}")
-
-    st.divider()
-    
-# LAMAN 4: FEATURE INSIGHTS
-# ==========================================
-elif menu == "🧠 Feature Insights":
-    st.title("🧠 Feature Importance Insight")
-    
+    # Feature Importance
+    st.subheader("Variabel Paling Berpengaruh")
     importances = model.feature_importances_
-    features = ['FCode', 'OS (Cat)', 'Disb (Cat)', 'Saldo (Cat)']
-    df_imp = pd.DataFrame({'Fitur': features, 'Weight': importances}).sort_values(by='Weight', ascending=True)
+    features = ['FCode', 'effRate', 'OS', 'Disbursement', 'Saldo', 'Angsuran', 'Sisa Tenor']
     
-    col_g, col_t = st.columns([2, 1])
-    with col_g:
-        fig_imp = px.bar(df_imp, x='Weight', y='Fitur', orientation='h', 
-                         title="Bobot Kontribusi Fitur terhadap Prediksi",
-                         color_discrete_sequence=['#6c757d'])
-        st.plotly_chart(fig_imp, use_container_width=True)
+    df_imp = pd.DataFrame({'Fitur': features, 'Importance': importances}).sort_values(by='Importance', ascending=True)
+    fig = px.bar(df_imp, x='Importance', y='Fitur', orientation='h', title="XGBoost Feature Importance")
+    st.plotly_chart(fig, use_container_width=True)
     
-    with col_t:
-        st.write("### 💡 Insight Strategis")
-        top_feature = df_imp.iloc[-1]['Fitur']
-        st.info(f"Fitur **{top_feature}** adalah faktor yang paling memengaruhi keputusan model.")
-        st.write(f"""
-        Dalam model ini, **{top_feature}** memiliki bobot paling tinggi. 
-        Ini mengindikasikan bahwa perubahan pada nilai tersebut berkorelasi kuat dengan perubahan tingkat kolektibilitas nasabah.
-        """)
+    st.info("""
+    **Catatan Interpretasi:**
+    - Nilai Importance yang tinggi menunjukkan fitur tersebut sering digunakan model untuk memisahkan nasabah lancar dan macet.
+    - Jika **Saldo** atau **Angsuran** mendominasi, pastikan data input di bagian tersebut akurat.
+    """)
