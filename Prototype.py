@@ -57,10 +57,10 @@ def set_menu(name):
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.title("Credit Predictor")
+    st.title("Credit Collectibility Predictor")
     st.markdown("---")
     if st.button("🏠 Home"): set_menu("🏠 Home")
-    if st.button("🔍 Prediksi & Output"): set_menu("🔍 Prediksi & Output")
+    if st.button("🔍 Prediksi & Output"): set_menu("🔍 Prediction & Output")
     if st.button("📈 Analytics Dashboard"): set_menu("📈 Analytics Dashboard")
     if st.button("🧠 Feature Insights"): set_menu("🧠 Feature Insights")
     st.markdown("---")
@@ -80,14 +80,14 @@ if menu == "🏠 Home":
     with col_a:
         st.metric("Total Sampel Data", f"{len(df_ref):,}")
     with col_b:
-        st.metric("Fitur Model", "7 Variabel Finansial")
+        st.metric("Model yang Digunakan", "XGBoost")
     st.info("Sistem ini memprediksi status kolektibilitas (1-5) menggunakan XGBoost yang telah di-tuning.")
 
 # ==========================================
 # LAMAN 2: PREDIKSI & OUTPUT
 # ==========================================
-elif menu == "🔍 Prediksi & Output":
-    st.title("🔍 Prediksi Collectibility")
+elif menu == "🔍 Prediction & Output":
+    st.title("🔍 Collectibility Predictor")
     t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
     
     with t1:
@@ -131,6 +131,53 @@ elif menu == "🔍 Prediksi & Output":
                     <p style="color: {txt}; font-size: 24px;">{status}</p>
                 </div>
             """, unsafe_allow_html=True)
+
+    with t2:
+        st.subheader("Upload Batch File (CSV)")
+        st.info("Pastikan CSV memiliki kolom: `FCode`, `effRate`, `OS`, `Disb`, `Saldo_Rekening`, `Angsuran`, `MatDate` (Format: YYYY-MM-DD)")
+        
+        up_file = st.file_uploader("Pilih file CSV", type="csv")
+        
+        if up_file is not None:
+            df_up = pd.read_csv(up_file)
+            st.write("Preview Data:")
+            st.dataframe(df_up.head())
+            
+            if st.button("Proses Batch Prediksi"):
+                results = []
+                progress_bar = st.progress(0)
+                
+                try:
+                    for i, row in df_up.iterrows():
+                        # 1. Preprocessing FCode
+                        f_val = fcode_list.index(row['FCode']) + 1 if row['FCode'] in fcode_list else 1
+                        
+                        m_date = pd.to_datetime(row['MatDate'])
+                        st_raw = max(0, (m_date - pd.to_datetime('2025-12-31')).days / 30)
+                        
+                        os_c = get_qcut_label(row['OS'], df_ref['OS'])
+                        disb_c = get_qcut_label(row['Disb'], df_ref['Disb'])
+                        saldo_c = get_qcut_label(row['Saldo_Rekening'], df_ref['Saldo_Rekening'])
+                        angs_c = get_qcut_label(row['Angsuran'], df_ref['Angsuran'])
+                        tenor_c = get_qcut_label(st_raw, df_ref['Sisa_Tenor_Ref'])
+                        
+                        X_batch = pd.DataFrame([[
+                            f_val, row['effRate'], os_c, disb_c, saldo_c, angs_c, tenor_c
+                        ]], columns=['FCode', 'effRate', 'OS (Category)', 'Disb (Category)', 'Saldo (Category)', 'Angsuran (Category)', 'Sisa_Tenor (Category)'])
+                        
+                        p = model.predict(X_batch)[0] + 1
+                        results.append(p)
+                        progress_bar.progress((i + 1) / len(df_up))
+                    
+                    df_up['Prediksi_Collectibility'] = results
+                    st.success("Selesai!")
+                    st.dataframe(df_up)
+                    
+                    # Tombol Download
+                    st.download_button("📥 Download Hasil", df_up.to_csv(index=False), "hasil_batch.csv", "text/csv")
+                
+                except Exception as e:
+                    st.error(f"Error: Pastikan nama kolom di CSV sudah benar. Detail: {e}")
 
 # ==========================================
 # LAMAN 3: ANALYTICS
