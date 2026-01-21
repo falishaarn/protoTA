@@ -60,7 +60,7 @@ with st.sidebar:
     st.title("Credit Collectibility Predictor")
     st.markdown("---")
     if st.button("🏠 Home"): set_menu("🏠 Home")
-    if st.button("🔍 Prediksi & Output"): set_menu("🔍 Prediction & Output")
+    if st.button("🔍 Prediction & Output"): set_menu("🔍 Prediction & Output")
     if st.button("📈 Analytics Dashboard"): set_menu("📈 Analytics Dashboard")
     if st.button("🧠 Feature Insights"): set_menu("🧠 Feature Insights")
     st.markdown("---")
