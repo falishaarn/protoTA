@@ -27,7 +27,6 @@ st.markdown("""
 @st.cache_data
 def load_ref():
     df = pd.read_csv('Data TA (Kredit).csv')
-    # Pre-calculate sisa tenor untuk referensi qcut
     df['MatDate'] = pd.to_datetime(df['MatDate'])
     target_date = pd.to_datetime('2025-12-31')
     df['Sisa_Tenor_Ref'] = (df['MatDate'] - target_date).dt.days / 30
@@ -60,6 +59,7 @@ with st.sidebar:
     st.title("Credit Collectibility Predictor")
     st.markdown("---")
     if st.button("🏠 Home"): set_menu("🏠 Home")
+    if st.button("⚙️ Training Model"): set_menu("⚙️ Training Model")
     if st.button("🔍 Prediction & Output"): set_menu("🔍 Prediction & Output")
     if st.button("📈 Analytics Dashboard"): set_menu("📈 Analytics Dashboard")
     if st.button("🧠 Feature Insights"): set_menu("🧠 Feature Insights")
@@ -82,9 +82,47 @@ if menu == "🏠 Home":
     with col_b:
         st.metric("Model yang Digunakan", "XGBoost")
     st.info("Sistem ini memprediksi status kolektibilitas (1-5) menggunakan XGBoost yang telah di-tuning.")
-
 # ==========================================
-# LAMAN 2: PREDIKSI & OUTPUT
+# LAMAN 2: TRAINING MODEL
+# ==========================================
+elif menu == "⚙️ Training Model":
+    st.title("⚙️ Retraining Model")
+    st.warning("Pastikan CSV memiliki kolom: FCode, effRate, OS, Disb, Saldo_Rekening, Angsuran, MatDate, Collectibility")
+    
+    up_train = st.file_uploader("Upload Data Training (CSV)", type="csv")
+    if up_train:
+        df_new = pd.read_csv(up_train)
+        if st.button("🚀 Start Training"):
+            with st.spinner("Processing 7 Features..."):
+                try:
+                    X_train = pd.DataFrame()
+                    X_train['FCode'] = df_new['FCode'].apply(lambda x: fcode_list.index(x)+1 if x in fcode_list else 1)
+                    X_train['effRate'] = df_new['effRate'] # Variabel Baru 1
+                    X_train['OS (Category)'] = df_new['OS'].apply(lambda x: get_qcut_label(x, df_ref['OS']))
+                    X_train['Disb (Category)'] = df_new['Disb'].apply(lambda x: get_qcut_label(x, df_ref['Disb']))
+                    X_train['Saldo (Category)'] = df_new['Saldo_Rekening'].apply(lambda x: get_qcut_label(x, df_ref['Saldo_Rekening']))
+                    X_train['Angsuran (Category)'] = df_new['Angsuran'].apply(lambda x: get_qcut_label(x, df_ref['Angsuran'])) # Variabel Baru 2
+                    
+                    # Hitung tenor untuk variabel baru 3
+                    df_new['MatDate'] = pd.to_datetime(df_new['MatDate'])
+                    st_raw = (df_new['MatDate'] - pd.to_datetime('2025-12-31')).dt.days / 30
+                    X_train['Sisa_Tenor (Category)'] = st_raw.apply(lambda x: get_qcut_label(max(0, x), df_ref['Sisa_Tenor_Ref']))
+                    
+                    # Target 0-indexed (1-5 menjadi 0-4)
+                    y_train = df_new['Collectibility'] - 1 
+                    
+                    # 2. Training
+                    new_model = xgb.XGBClassifier(n_estimators=100, learning_rate=0.1)
+                    new_model.fit(X_train, y_train)
+                    new_model.save_model('model_xgb_best.json')
+                    
+                    st.success("Model 'model_xgb_best.json' berhasil diperbarui!")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"Gagal Training: {e}")
+                    
+# ==========================================
+# LAMAN 3: PREDIKSI & OUTPUT
 # ==========================================
 elif menu == "🔍 Prediction & Output":
     st.title("🔍 Collectibility Predictor")
@@ -115,7 +153,6 @@ elif menu == "🔍 Prediction & Output":
             angs_c = get_qcut_label(angs_in, df_ref['Angsuran'])
             tenor_c = get_qcut_label(st_raw, df_ref['Sisa_Tenor_Ref'])
             
-            # URUTAN HARUS SAMA DENGAN TRAINING
             X = pd.DataFrame([[f_enc, eff_in, os_c, disb_c, saldo_c, angs_c, tenor_c]], 
                              columns=['FCode', 'effRate', 'OS (Category)', 'Disb (Category)', 'Saldo (Category)', 'Angsuran (Category)', 'Sisa_Tenor (Category)'])
             
@@ -123,6 +160,8 @@ elif menu == "🔍 Prediction & Output":
             
             if pred == 1: bg, txt, status = "#D4EDDA", "#155724", "LANCAR"
             elif pred == 2: bg, txt, status = "#FFF3CD", "#856404", "DALAM PERHATIAN KHUSUS"
+            elif pred == 3: bg, txt, status = "#FFF3CD", "#856404", "KURANG LANCAR"
+            elif pred == 4: bg, txt, status = "#FFF3CD", "#856404", "DIRAGUKAN"
             else: bg, txt, status = "#F8D7DA", "#721C24", "NON-PERFORMING LOAN (MACET)"
 
             st.markdown(f"""
@@ -180,7 +219,7 @@ elif menu == "🔍 Prediction & Output":
                     st.error(f"Error: Pastikan nama kolom di CSV sudah benar. Detail: {e}")
 
 # ==========================================
-# LAMAN 3: ANALYTICS
+# LAMAN 4: ANALYTICS
 # ==========================================
 elif menu == "📈 Analytics Dashboard":
     st.title("📈 Strategic Risk Dashboard")
@@ -190,18 +229,18 @@ elif menu == "📈 Analytics Dashboard":
     c3.metric("Total Nasabah", f"{len(df_ref):,}")
     
     st.divider()
-    st.subheader("🎯 Proyeksi Kolektibilitas (Data Sampel)")
+    st.subheader("🎯 Proyeksi Kolektibilitas")
     
     # Mass prediction untuk dashboard
     df_sample = df_ref.copy()
     X_mass = pd.DataFrame()
     X_mass['FCode'] = df_sample['FCode'].apply(lambda x: fcode_list.index(x) + 1 if x in fcode_list else 1)
     X_mass['effRate'] = df_sample['effRate']
-    X_mass['OS (Category)'] = pd.qcut(df_sample['OS'].rank(method='first'), 10, labels=range(1, 11)).astype(int)
-    X_mass['Disb (Category)'] = pd.qcut(df_sample['Disb'].rank(method='first'), 10, labels=range(1, 11)).astype(int)
-    X_mass['Saldo (Category)'] = pd.qcut(df_sample['Saldo_Rekening'].rank(method='first'), 10, labels=range(1, 11)).astype(int)
-    X_mass['Angsuran (Category)'] = pd.qcut(df_sample['Angsuran'].rank(method='first'), 10, labels=range(1, 11)).astype(int)
-    X_mass['Sisa_Tenor (Category)'] = pd.qcut(df_sample['Sisa_Tenor_Ref'].rank(method='first'), 10, labels=range(1, 11)).astype(int)
+    X_mass['OS (Category)'] = df_sample['OS'].apply(lambda x: get_qcut_label(x, df_ref['OS']))
+    X_mass['Disb (Category)'] = df_sample['Disb'].apply(lambda x: get_qcut_label(x, df_ref['Disb']))
+    X_mass['Saldo (Category)'] = df_sample['Saldo_Rekening'].apply(lambda x: get_qcut_label(x, df_ref['Saldo_Rekening']))
+    X_mass['Angsuran (Category)'] = df_sample['Angsuran'].apply(lambda x: get_qcut_label(x, df_ref['Angsuran']))
+    X_mass['Sisa_Tenor (Category)'] = df_sample['Sisa_Tenor_Ref'].apply(lambda x: get_qcut_label(x, df_ref['Sisa_Tenor_Ref']))
 
     mass_preds = model.predict(X_mass) + 1
     counts = pd.Series(mass_preds).value_counts(normalize=True).sort_index() * 100
@@ -213,7 +252,7 @@ elif menu == "📈 Analytics Dashboard":
         cols[i].markdown(f"<div style='text-align:center; color:{colors[i]}'><b>Coll {i+1}</b><h3>{val:.1f}%</h3></div>", unsafe_allow_html=True)
 
 # ==========================================
-# LAMAN 4: FEATURE INSIGHTS
+# LAMAN 5: FEATURE INSIGHTS
 # ==========================================
 elif menu == "🧠 Feature Insights":
     st.title("🧠 Feature Importance")
