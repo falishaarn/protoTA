@@ -58,11 +58,11 @@ def set_menu(name):
 with st.sidebar:
     st.title("Credit Collectibility Predictor")
     st.markdown("---")
-    if st.button("🏠 Home"): set_menu("🏠 Home")
-    if st.button("⚙️ Training Model"): set_menu("⚙️ Training Model")
-    if st.button("🔍 Prediction & Output"): set_menu("🔍 Prediction & Output")
-    if st.button("📈 Analytics Dashboard"): set_menu("📈 Analytics Dashboard")
-    if st.button("🧠 Feature Insights"): set_menu("🧠 Feature Insights")
+    if st.button("Home"): set_menu("Home")
+    if st.button("Training Model"): set_menu("Training Model")
+    if st.button("Prediction & Output"): set_menu("Prediction & Output")
+    if st.button("Analytics Dashboard"): set_menu("Analytics Dashboard")
+    if st.button("Feature Insights"): set_menu("Feature Insights")
     st.markdown("---")
     st.caption("Dibuat untuk Keperluan Tugas Akhir")
 
@@ -73,8 +73,8 @@ menu = st.session_state.menu
 # ==========================================
 # LAMAN 1: HOME
 # ==========================================
-if menu == "🏠 Home":
-    st.title("🏦 Credit Collectibility Predictor")
+if menu == "Home":
+    st.title("Credit Collectibility Predictor")
     st.write("Navigasikan sistem menggunakan tombol di sidebar untuk memulai analisis.")
     col_a, col_b = st.columns(2)
     with col_a:
@@ -85,41 +85,62 @@ if menu == "🏠 Home":
 # ==========================================
 # LAMAN 2: TRAINING MODEL
 # ==========================================
-elif menu == "⚙️ Training Model":
-    st.title("⚙️ Retraining Model")
-    st.warning("Pastikan CSV memiliki kolom: FCode, effRate, OS, Disb, Saldo_Rekening, Angsuran, MatDate, Collectibility")
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from imblearn.combine import SMOTETomek
+
+elif menu == "Training Model":
+    st.title("Model Retraining Center")
+    st.info("Metode: XGBoost + SMOTETomek (Hybrid Sampling) + 70:30 Split")
     
-    up_train = st.file_uploader("Upload Data Training (CSV)", type="csv")
+    up_train = st.file_uploader("Upload Data Baru (CSV)", type="csv")
     if up_train:
         df_new = pd.read_csv(up_train)
-        if st.button("🚀 Start Training"):
-            with st.spinner("Processing 7 Features..."):
+        if st.button("Mulai Training"):
+            with st.spinner("Sedang menyeimbangkan dan membersihkan data..."):
                 try:
-                    X_train = pd.DataFrame()
-                    X_train['FCode'] = df_new['FCode'].apply(lambda x: fcode_list.index(x)+1 if x in fcode_list else 1)
-                    X_train['effRate'] = df_new['effRate'] # Variabel Baru 1
-                    X_train['OS (Category)'] = df_new['OS'].apply(lambda x: get_qcut_label(x, df_ref['OS']))
-                    X_train['Disb (Category)'] = df_new['Disb'].apply(lambda x: get_qcut_label(x, df_ref['Disb']))
-                    X_train['Saldo (Category)'] = df_new['Saldo_Rekening'].apply(lambda x: get_qcut_label(x, df_ref['Saldo_Rekening']))
-                    X_train['Angsuran (Category)'] = df_new['Angsuran'].apply(lambda x: get_qcut_label(x, df_ref['Angsuran'])) # Variabel Baru 2
+                    # 1. Preprocessing (7 Variabel)
+                    X = pd.DataFrame()
+                    X['FCode'] = df_new['FCode'].apply(lambda x: fcode_list.index(x)+1 if x in fcode_list else 1)
+                    X['effRate'] = df_new['effRate']
+                    X['OS (Category)'] = df_new['OS'].apply(lambda x: get_qcut_label(x, df_ref['OS']))
+                    X['Disb (Category)'] = df_new['Disb'].apply(lambda x: get_qcut_label(x, df_ref['Disb']))
+                    X['Saldo (Category)'] = df_new['Saldo_Rekening'].apply(lambda x: get_qcut_label(x, df_ref['Saldo_Rekening']))
+                    X['Angsuran (Category)'] = df_new['Angsuran'].apply(lambda x: get_qcut_label(x, df_ref['Angsuran']))
                     
-                    # Hitung tenor untuk variabel baru 3
                     df_new['MatDate'] = pd.to_datetime(df_new['MatDate'])
                     st_raw = (df_new['MatDate'] - pd.to_datetime('2025-12-31')).dt.days / 30
-                    X_train['Sisa_Tenor (Category)'] = st_raw.apply(lambda x: get_qcut_label(max(0, x), df_ref['Sisa_Tenor_Ref']))
+                    X['Sisa_Tenor (Category)'] = st_raw.apply(lambda x: get_qcut_label(max(0, x), df_ref['Sisa_Tenor_Ref']))
                     
-                    # Target 0-indexed (1-5 menjadi 0-4)
-                    y_train = df_new['Collectibility'] - 1 
+                    y = df_new['Collectibility'] - 1 
+
+                    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
                     
-                    # 2. Training
-                    new_model = xgb.XGBClassifier(n_estimators=100, learning_rate=0.1)
-                    new_model.fit(X_train, y_train)
+                    smt = SMOTETomek(random_state=42)
+                    X_train_res, y_train_res = smt.fit_resample(X_train, y_train)
+                    
+                    new_model = xgb.XGBClassifier(n_estimators=100, learning_rate=0.1, random_state=42)
+                    new_model.fit(X_train_res, y_train_res)
+                    
+                    y_pred = new_model.predict(X_test)
+                    acc_test = accuracy_score(y_test, y_pred)
                     new_model.save_model('model_xgb_best.json')
                     
-                    st.success("Model 'model_xgb_best.json' berhasil diperbarui!")
                     st.balloons()
+                    st.success("Training Selesai!")
+                    
+                    col1, col2, col3 = st.columns(3)
+                    col1.metric("Akurasi Final", f"{acc_test*100:.2f}%")
+                    col2.metric("Data Asli", f"{len(X_train)}")
+                    col3.metric("Data Hibrida", f"{len(X_train_res)}")
+                    
+                    st.write("### Sebaran Kelas Setelah Data Diseimbangkan")
+                    dist_data = pd.Series(y_train_res).value_counts().sort_index()
+                    dist_data.index = [f"Coll {i+1}" for i in dist_data.index]
+                    st.bar_chart(dist_data)
+
                 except Exception as e:
-                    st.error(f"Gagal Training: {e}")
+                    st.error(f"Gagal memproses: {e}")
                     
 # ==========================================
 # LAMAN 3: PREDIKSI & OUTPUT
@@ -158,11 +179,11 @@ elif menu == "🔍 Prediction & Output":
             
             pred = model.predict(X)[0] + 1
             
-            if pred == 1: bg, txt, status = "#D4EDDA", "#155724", "LANCAR"
-            elif pred == 2: bg, txt, status = "#FFF3CD", "#856404", "DALAM PERHATIAN KHUSUS"
-            elif pred == 3: bg, txt, status = "#FFF3CD", "#856404", "KURANG LANCAR"
-            elif pred == 4: bg, txt, status = "#FFF3CD", "#856404", "DIRAGUKAN"
-            else: bg, txt, status = "#F8D7DA", "#721C24", "NON-PERFORMING LOAN (MACET)"
+            if pred == 1: bg, txt, status = "#D4EDDA", "#155724", "LANCAR (COLL 1)"
+            elif pred == 2: bg, txt, status = "#FFF3CD", "#856404", "DALAM PERHATIAN KHUSUS (COLL 2)"
+            elif pred == 3: bg, txt, status = "#FFE5D0", "#854800", "KURANG LANCAR (COLL 3)"
+            elif pred == 4: bg, txt, status = "#F8D7DA", "#721C24", "DIRAGUKAN (COLL 4)"
+            else: bg, txt, status = "#721C24", "#FFFFFF", "MACET / NPL (COLL 5)"
 
             st.markdown(f"""
                 <div style="background-color: {bg}; padding: 35px; border-radius: 15px; border: 1px solid {txt}33; text-align: center;">
