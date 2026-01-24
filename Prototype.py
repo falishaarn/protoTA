@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 # --- CONFIG ---
 st.set_page_config(page_title="Credit Collectibility Predictor", layout="wide")
 
-# --- CUSTOM CSS (Sesuai keinginan kamu) ---
+# --- CUSTOM CSS ---
 st.markdown("""
     <style>
     [data-testid="stSidebarNav"] {display: none;}
@@ -49,7 +49,7 @@ def get_qcut_label(value, series):
 
 # --- SESSION STATE NAVIGASI ---
 if 'menu' not in st.session_state:
-    st.session_state.menu = "🏠 Home"
+    st.session_state.menu = "Home"
 
 def set_menu(name):
     st.session_state.menu = name
@@ -90,7 +90,7 @@ from sklearn.metrics import accuracy_score
 from imblearn.combine import SMOTETomek
 
 elif menu == "Training Model":
-    st.title("Model Retraining Center")
+    st.title("Data Training")
     st.info("Metode: XGBoost + SMOTETomek (Hybrid Sampling) + 70:30 Split")
     
     up_train = st.file_uploader("Upload Data Baru (CSV)", type="csv")
@@ -145,8 +145,8 @@ elif menu == "Training Model":
 # ==========================================
 # LAMAN 3: PREDIKSI & OUTPUT
 # ==========================================
-elif menu == "🔍 Prediction & Output":
-    st.title("🔍 Collectibility Predictor")
+elif menu == "Prediction & Output":
+    st.title("Collectibility Predictor")
     t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
     
     with t1:
@@ -242,15 +242,15 @@ elif menu == "🔍 Prediction & Output":
 # ==========================================
 # LAMAN 4: ANALYTICS
 # ==========================================
-elif menu == "📈 Analytics Dashboard":
-    st.title("📈 Strategic Risk Dashboard")
+elif menu == "Analytics Dashboard":
+    st.title("Strategic Risk Dashboard")
     c1, c2, c3 = st.columns(3)
     c1.metric("Total OS", f"Rp {df_ref['OS'].sum()/1e9:.1f} M")
     c2.metric("Total Saldo", f"Rp {df_ref['Saldo_Rekening'].sum()/1e9:.1f} M")
     c3.metric("Total Nasabah", f"{len(df_ref):,}")
     
     st.divider()
-    st.subheader("🎯 Proyeksi Kolektibilitas")
+    st.subheader("Proyeksi Kolektibilitas")
     
     # Mass prediction untuk dashboard
     df_sample = df_ref.copy()
@@ -275,8 +275,8 @@ elif menu == "📈 Analytics Dashboard":
 # ==========================================
 # LAMAN 5: FEATURE INSIGHTS
 # ==========================================
-elif menu == "🧠 Feature Insights":
-    st.title("🧠 Feature Importance")
+elif menu == "Feature Insights":
+    st.title("Feature Importance")
     importances = model.feature_importances_
     # Nama fitur disesuaikan dengan 7 variabel
     features = ['FCode', 'effRate', 'OS', 'Disbursement', 'Saldo', 'Angsuran', 'Sisa Tenor']
