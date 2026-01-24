@@ -228,11 +228,11 @@ elif menu == "Prediction & Output":
             
             pred = model.predict(X)[0] + 1
             
-            if pred == 1: bg, txt, status = "#D4EDDA", "#155724", "LANCAR (COLL 1)"
-            elif pred == 2: bg, txt, status = "#FFF3CD", "#856404", "DALAM PERHATIAN KHUSUS (COLL 2)"
-            elif pred == 3: bg, txt, status = "#FFE5D0", "#854800", "KURANG LANCAR (COLL 3)"
-            elif pred == 4: bg, txt, status = "#F8D7DA", "#721C24", "DIRAGUKAN (COLL 4)"
-            else: bg, txt, status = "#721C24", "#FFFFFF", "MACET / NPL (COLL 5)"
+            if pred == 1: bg, txt, status = "#D4EDDA", "#155724", "LANCAR"
+            elif pred == 2: bg, txt, status = "#FFF3CD", "#856404", "DALAM PERHATIAN KHUSUS"
+            elif pred == 3: bg, txt, status = "#FFE5D0", "#854800", "KURANG LANCAR"
+            elif pred == 4: bg, txt, status = "#F8D7DA", "#721C24", "DIRAGUKAN"
+            else: bg, txt, status = "#721C24", "#FFFFFF", "MACET / NPL"
 
             st.markdown(f"""
                 <div style="background-color: {bg}; padding: 35px; border-radius: 15px; border: 1px solid {txt}33; text-align: center;">
