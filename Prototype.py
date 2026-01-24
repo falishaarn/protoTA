@@ -88,17 +88,67 @@ if menu == "Home":
 # ==========================================
 # LAMAN 2: TRAINING MODEL
 # ==========================================
-elif menu == "Training Model":
-    st.title("Data Training")
+elif menu == "Model Training":
+    st.title("Model Training")
+    with st.expander("Lihat Format & Kolom CSV yang Dibutuhkan"):
+        st.write("Pastikan file CSV Anda memiliki kolom-kolom berikut agar model bisa mengenali fiturnya:")
+        
+        data_info = {
+            "Nama Kolom": ["FCode", "effRate", "OS", "Disb", "Saldo_Rekening", "Angsuran", "MatDate", "Collectibility"],
+            "Deskripsi": ["Kode Cabang (Contoh: CA001)", "Bunga Efektif (%)", "Outstanding (Sisa Pinjaman)", "Plafon/Disbursement", "Saldo di Tabungan", "Besar Angsuran bulanan", "Tanggal Jatuh Tempo (YYYY-MM-DD)", "Label Target (Angka 1-5)"],
+            "Tipe Data": ["Kategori", "Angka", "Angka", "Angka", "Angka", "Angka", "Tanggal", "Angka (Target)"]
+        }
+        st.table(pd.DataFrame(data_info))
+        
+        st.warning("**Penting:** Pastikan tidak ada data kosong (Null/NaN) pada kolom-kolom di atas.")
     st.info("Metode: XGBoost + SMOTETomek (Hybrid Sampling) + 70:30 Split")
     
     up_train = st.file_uploader("Upload Data Baru (CSV)", type="csv")
+    
     if up_train:
         df_new = pd.read_csv(up_train)
-        if st.button("Mulai Training"):
+        required_cols = ["FCode", "effRate", "OS", "Disb", "Saldo_Rekening", "Angsuran", "MatDate", "Collectibility"]
+        missing_cols = [c for c in required_cols if c not in df_new.columns]
+        
+        if missing_cols:
+            st.error(f"❌ File ditolak! Kolom berikut tidak ditemukan: {', '.join(missing_cols)}")
+            st.stop()
+        
+        st.subheader("Pengecekan dan Pembersihan")
+        
+        null_count = df_new.isnull().sum().sum()
+        dup_count = df_new.duplicated().sum()
+        
+        col_audit1, col_audit2 = st.columns(2)
+
+        is_clean = (null_count == 0 and dup_count == 0)
+        
+        if null_count > 0:
+            col_audit1.warning(f"Ditemukan {null_count} data kosong!")
+        else:
+            col_audit1.success("Tidak ada data kosong")
+            
+        if dup_count > 0:
+            col_audit2.warning(f"Ditemukan {dup_count} baris duplikat!")
+        else:
+            col_audit2.success("Tidak ada data duplikat")
+
+        st.divider()
+
+        if is_clean:
+            # Jika data sudah bersih, beri tombol warna hijau (primary)
+            btn_label = "Mulai Training"
+            st.info("Data kamu sudah bersih. Klik tombol di bawah untuk melatih model.")
+        else:
+            # Jika data kotor, beri peringatan
+            btn_label = "Bersihkan Data dan Mulai Training"
+            st.warning("Aplikasi akan otomatis menghapus baris kosong atau duplikat sebelum training.")
+
+        if st.button(btn_label, type="primary" if is_clean else "secondary"):
+            df_new = df_new.dropna().drop_duplicates()
+            
             with st.spinner("Sedang menyeimbangkan dan membersihkan data..."):
                 try:
-                    # 1. Preprocessing (7 Variabel)
                     X = pd.DataFrame()
                     X['FCode'] = df_new['FCode'].apply(lambda x: fcode_list.index(x)+1 if x in fcode_list else 1)
                     X['effRate'] = df_new['effRate']
