@@ -4,6 +4,9 @@ import numpy as np
 import xgboost as xgb
 import plotly.express as px
 import plotly.graph_objects as go
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from imblearn.combine import SMOTETomek
 
 # --- CONFIG ---
 st.set_page_config(page_title="Credit Collectibility Predictor", layout="wide")
@@ -85,10 +88,6 @@ if menu == "Home":
 # ==========================================
 # LAMAN 2: TRAINING MODEL
 # ==========================================
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
-from imblearn.combine import SMOTETomek
-
 elif menu == "Training Model":
     st.title("Data Training")
     st.info("Metode: XGBoost + SMOTETomek (Hybrid Sampling) + 70:30 Split")
