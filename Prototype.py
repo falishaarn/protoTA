@@ -59,7 +59,7 @@ def set_menu(name):
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.title("Credit Collectibility Predictor")
+    st.title("Sistem Prediksi Kolektibilitas Bank X")
     st.markdown("---")
     if st.button("Home"): set_menu("Home")
     if st.button("Model Training"): set_menu("Model Training")
@@ -79,7 +79,7 @@ menu = st.session_state.menu
 if menu == "Home":
     st.title("Sistem Prediksi Kolektibilitas Bank X")
     
-    st.markdown("### 📋 Langkah Penggunaan Sistem")
+    st.markdown("###Langkah Penggunaan Sistem")
     
     col_step1, col_step2 = st.columns(2)
     
@@ -135,7 +135,7 @@ elif menu == "Model Training":
         missing_cols = [c for c in required_cols if c not in df_new.columns]
         
         if missing_cols:
-            st.error(f"❌ File ditolak! Kolom berikut tidak ditemukan: {', '.join(missing_cols)}")
+            st.error(f"File ditolak! Kolom berikut tidak ditemukan: {', '.join(missing_cols)}")
             st.stop()
         
         st.subheader("Pengecekan dan Pembersihan")
@@ -219,7 +219,7 @@ elif menu == "Model Training":
 # LAMAN 3: PREDIKSI & OUTPUT
 # ==========================================
 elif menu == "Prediction & Output":
-    st.title("Collectibility Predictor")
+    st.title("Prediksi Kolektibilitas")
     t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
     
     with t1:
@@ -316,7 +316,7 @@ elif menu == "Prediction & Output":
 # LAMAN 4: ANALYTICS
 # ==========================================
 elif menu == "Analytics Dashboard":
-    st.title("Strategic Risk Dashboard")
+    st.title("Dashboard Kredit Nasabah")
     c1, c2, c3 = st.columns(3)
     c1.metric("Total OS", f"Rp {df_ref['OS'].sum()/1e9:.1f} M")
     c2.metric("Total Saldo", f"Rp {df_ref['Saldo_Rekening'].sum()/1e9:.1f} M")
