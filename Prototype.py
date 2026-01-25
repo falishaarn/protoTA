@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from imblearn.combine import SMOTETomek
+from imblearn.over_sampling import SMOTE
 
 # --- CONFIG ---
 st.set_page_config(page_title="Credit Collectibility Predictor", layout="wide")
