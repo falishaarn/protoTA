@@ -74,17 +74,42 @@ model = load_xgb_model()
 menu = st.session_state.menu
 
 # ==========================================
-# LAMAN 1: HOME
+# LAMAN 1: HOME (PANDUAN PENGGUNAAN)
 # ==========================================
 if menu == "Home":
-    st.title("Credit Collectibility Predictor")
-    st.write("Navigasikan sistem menggunakan tombol di sidebar untuk memulai analisis.")
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.metric("Total Sampel Data", f"{len(df_ref):,}")
-    with col_b:
-        st.metric("Model yang Digunakan", "XGBoost")
-    st.info("Sistem ini memprediksi status kolektibilitas (1-5) menggunakan XGBoost yang telah di-tuning.")
+    st.title("Sistem Prediksi Kolektibilitas Bank X")
+    
+    st.markdown("### 📋 Langkah Penggunaan Sistem")
+    
+    col_step1, col_step2 = st.columns(2)
+    
+    with col_step1:
+        st.info("**A. Jika ingin memperbarui Model:**")
+        st.markdown("""
+        1. Siapkan file dataset nasabah dalam format CSV.
+        2. Klik menu **'Model Training'** di sidebar dan unggah file tersebut.
+        3. Tunggu sistem melakukan pembersihan data dan penyeimbangan **SMOTETomek**.
+        4. Setelah proses selesai, model **XGBoost** baru akan tersimpan secara otomatis.
+        """)
+        
+    with col_step2:
+        st.success("**B. Jika ingin melakukan Prediksi:**")
+        st.markdown("""
+        1. Pilih menu **'Prediction & Output'**.
+        2. Gunakan **'Input Tunggal'** untuk pengecekan nasabah secara individu.
+        3. Gunakan **'Upload Batch'** untuk mengunggah file data yang ingin diprediksi.
+        4. Hasil prediksi tingkat kolektibilitas (1-5) akan langsung ditampilkan.
+        """)
+
+    st.divider()
+    
+    # Ringkasan Status Sistem
+    st.subheader("📊 Status Sistem Saat Ini")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Data Referensi", f"{len(df_ref):,}")
+    c2.metric("Algoritma Utama", "XGBoost")
+    c3.metric("Status Koneksi", "Online (GitHub)")
+    
 # ==========================================
 # LAMAN 2: TRAINING MODEL
 # ==========================================
