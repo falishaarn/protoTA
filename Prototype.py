@@ -233,6 +233,7 @@ elif menu == "Model Training":
                     st.error(f"Gagal memproses: {e}")
 
 if 'train_finished' in st.session_state and st.session_state.train_finished:
+        st.divider()
         st.success("Pelatihan Model Selesai")
         
         # Menampilkan perbandingan jumlah data sebelum dan sesudah upsampling
