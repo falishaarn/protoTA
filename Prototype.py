@@ -201,7 +201,7 @@ elif menu == "Model Training":
                     
                     X_train_res, y_train_res = smt.fit_resample(X_train, y_train)
                     
-                    new_model = xgb.XGBClassifier('gamma': 0, 'learning_rate': 0.05, 'max_depth': 8, 'min_child_weight': 3, random_state=42)
+                    new_model = xgb.XGBClassifier(gamma=0, learning_rate=0.05, max_depth=8, min_child_weight=3, random_state=42)
                     new_model.fit(X_train_res, y_train_res)
                     
                     y_pred = new_model.predict(X_test)
