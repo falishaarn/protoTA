@@ -173,37 +173,51 @@ elif menu == "Model Training":
             
             with st.spinner("Sedang menyeimbangkan dan membersihkan data..."):
                 try:
-                    # --- (Bagian penyiapan DataFrame X tetap sama sampai penentuan y) ---
+                    # --- 1. DEFINISIKAN X (SOLUSI ERROR 'X IS NOT DEFINED') ---
+                    X = pd.DataFrame()
+                    
+                    # Transformasi FCode ke angka berdasarkan fcode_list
+                    X['FCode'] = df_new['FCode'].apply(lambda x: fcode_list.index(x)+1 if x in fcode_list else 1)
+                    X['effRate'] = df_new['effRate']
+                    
+                    # Transformasi variabel numerik ke kategori decile (1-10)
+                    X['OS (Category)'] = df_new['OS'].apply(lambda x: get_qcut_label(x, df_ref['OS']))
+                    X['Disb (Category)'] = df_new['Disb'].apply(lambda x: get_qcut_label(x, df_ref['Disb']))
+                    X['Saldo (Category)'] = df_new['Saldo_Rekening'].apply(lambda x: get_qcut_label(x, df_ref['Saldo_Rekening']))
+                    X['Angsuran (Category)'] = df_new['Angsuran'].apply(lambda x: get_qcut_label(x, df_ref['Angsuran']))
+                    
+                    # Transformasi MatDate ke Sisa Tenor (Category)
+                    df_new['MatDate'] = pd.to_datetime(df_new['MatDate'])
+                    st_raw = (df_new['MatDate'] - pd.to_datetime('2025-12-31')).dt.days / 30
+                    X['Sisa_Tenor (Category)'] = st_raw.apply(lambda x: get_qcut_label(max(0, x), df_ref['Sisa_Tenor_Ref']))
+                    
+                    # --- 2. DEFINISIKAN TARGET Y ---
                     y = df_new['Collectibility'] - 1 
 
-                    # 1. TAMBAHKAN VALIDASI JUMLAH DATA
+                    # 3. VALIDASI JUMLAH DATA & SPLIT
                     if len(df_new) < 10:
                         st.error("Data terlalu sedikit untuk melakukan training. Minimal dibutuhkan 10 sampel data.")
                         st.stop()
 
                     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
                     
-                    # 2. UBAH BAGIAN SMOTETOMEK JADI DINAMIS (Solusi Error Neighbors)
-                    # Hitung sampel terkecil di tiap kelas pada data training
+                    # 4. PENANGANAN SMOTETOMEK DINAMIS
                     min_samples = y_train.value_counts().min()
-                    
-                    # Tentukan k_neighbors (SMOTE butuh minimal 2 sampel per kelas)
                     if min_samples < 2:
-                        st.error("Gagal: Ada kelas kolektibilitas yang hanya memiliki 1 data. SMOTE butuh minimal 2 data per kelas.")
+                        st.error("Gagal: Ada kelas kolektibilitas yang hanya memiliki 1 data. Butuh minimal 2 data per kelas untuk SMOTE.")
                         st.stop()
                     
-                    # n_neighbors default adalah 5, tapi harus lebih kecil dari min_samples
                     n_neigh = min(5, min_samples - 1)
-                    
-                    # Definisikan SMOTE dengan k_neighbors yang dinamis
                     smote_dist = SMOTE(k_neighbors=n_neigh, random_state=42)
                     smt = SMOTETomek(smote=smote_dist, random_state=42)
                     
                     X_train_res, y_train_res = smt.fit_resample(X_train, y_train)
                     
+                    # 5. TRAINING MODEL DENGAN PARAMETER TERBAIK
                     new_model = xgb.XGBClassifier(gamma=0, learning_rate=0.05, max_depth=8, min_child_weight=3, random_state=42)
                     new_model.fit(X_train_res, y_train_res)
                     
+                    # --- 6. TAMPILKAN HASIL ---
                     y_pred = new_model.predict(X_test)
                     acc_test = accuracy_score(y_test, y_pred)
                     new_model.save_model('model_xgb_best.json')
@@ -214,9 +228,9 @@ elif menu == "Model Training":
                     col1, col2, col3 = st.columns(3)
                     col1.metric("Akurasi Final", f"{acc_test*100:.2f}%")
                     col2.metric("Data Asli", f"{len(X_train)}")
-                    col3.metric("Data Hibrida", f"{len(X_train_res)}")
+                    col3.metric("Data Hibrida (SMOTE)", f"{len(X_train_res)}")
                     
-                    st.write("### Sebaran Kelas Setelah Data Diseimbangkan")
+                    # Grafik sebaran kelas
                     dist_data = pd.Series(y_train_res).value_counts().sort_index()
                     dist_data.index = [f"Coll {i+1}" for i in dist_data.index]
                     st.bar_chart(dist_data)
