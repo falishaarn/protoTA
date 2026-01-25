@@ -213,6 +213,19 @@ elif menu == "Model Training":
                     smt = SMOTETomek(smote=smote_dist, random_state=42)
                     
                     X_train_res, y_train_res = smt.fit_resample(X_train, y_train)
+
+                    dist_sebelum = y_train.value_counts().sort_index()
+                    dist_sesudah = pd.Series(y_train_res).value_counts().sort_index()
+                    
+                    st.session_state.df_summary = pd.DataFrame({
+                        "Kolektibilitas": [f"Kolektibilitas {i+1}" for i in range(5)],
+                        "Jumlah Sebelum": [dist_sebelum.get(i, 0) for i in range(5)],
+                        "Jumlah Sesudah": [dist_sesudah.get(i, 0) for i in range(5)]
+                    })
+                    
+                    # Simpan angka total untuk metrik
+                    st.session_state.n_asli = len(X_train)
+                    st.session_state.n_hibrida = len(X_train_res)
                     
                     # 5. TRAINING MODEL DENGAN PARAMETER TERBAIK
                     new_model = xgb.XGBClassifier(gamma=0, learning_rate=0.05, max_depth=8, min_child_weight=3, random_state=42)
@@ -232,19 +245,19 @@ elif menu == "Model Training":
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
 
-if 'train_finished' in st.session_state and st.session_state.train_finished:
-        st.divider()
-        st.success("Pelatihan Model Selesai")
-        
-        # Menampilkan perbandingan jumlah data sebelum dan sesudah upsampling
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Akurasi Model", f"{st.session_state.acc_test*100:.2f}%")
-        c2.metric("Data Sebelum Upsampling", f"{st.session_state.n_asli} baris")
-        c3.metric("Data Sesudah Upsampling", f"{st.session_state.n_hibrida} baris")
-        
-        st.write("### Detail Perubahan Jumlah Data Per Kelas")
-        st.table(st.session_state.df_summary)
-        st.info(f"Proses SMOTETomek telah menambah data dari {st.session_state.n_asli} menjadi {st.session_state.n_hibrida} baris untuk menyeimbangkan kelas kolektibilitas.")
+    if 'train_finished' in st.session_state and st.session_state.train_finished:
+            st.divider()
+            st.success("Pelatihan Model Selesai")
+            
+            # Menampilkan perbandingan jumlah data sebelum dan sesudah upsampling
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Akurasi Model", f"{st.session_state.acc_test*100:.2f}%")
+            c2.metric("Data Sebelum Upsampling", f"{st.session_state.n_asli} baris")
+            c3.metric("Data Sesudah Upsampling", f"{st.session_state.n_hibrida} baris")
+            
+            st.write("### Detail Perubahan Jumlah Data Per Kelas")
+            st.table(st.session_state.df_summary)
+            st.info(f"Proses upsampling telah menambah data dari {st.session_state.n_asli} menjadi {st.session_state.n_hibrida} baris untuk menyeimbangkan kelas kolektibilitas.")
                     
 # ==========================================
 # LAMAN 3: PREDIKSI & OUTPUT
