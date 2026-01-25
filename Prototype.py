@@ -221,23 +221,31 @@ elif menu == "Model Training":
                     # --- 6. TAMPILKAN HASIL ---
                     y_pred = new_model.predict(X_test)
                     acc_test = accuracy_score(y_test, y_pred)
+
+                    st.session_state.acc_test = accuracy_score(y_test, y_pred)
+                    st.session_state.train_finished = True
+                    st.session_state.n_asli = len(X_train)
+                    st.session_state.n_hibrida = len(X_train_res)
+                    
                     new_model.save_model('model_xgb_best.json')
                     
-                    st.balloons()
                     st.success("Training Selesai!")
-                    
-                    col1, col2, col3 = st.columns(3)
-                    col1.metric("Akurasi Final", f"{acc_test*100:.2f}%")
-                    col2.metric("Data Asli", f"{len(X_train)}")
-                    col3.metric("Data Hibrida (SMOTE)", f"{len(X_train_res)}")
-                    
-                    # Grafik sebaran kelas
-                    dist_data = pd.Series(y_train_res).value_counts().sort_index()
-                    dist_data.index = [f"Coll {i+1}" for i in dist_data.index]
-                    st.bar_chart(dist_data)
 
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
+
+if 'train_finished' in st.session_state and st.session_state.train_finished:
+        st.divider()
+        st.success("✅ Pelatihan Model Selesai")
+        
+        # Menampilkan perbandingan jumlah data sebelum dan sesudah upsampling
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Akurasi Model", f"{st.session_state.acc_test*100:.2f}%")
+        c2.metric("Data Sebelum Upsampling", f"{st.session_state.n_asli} baris")
+        c3.metric("Data Sesudah Upsampling", f"{st.session_state.n_hibrida} baris")
+        
+        # Informasi tambahan dalam teks sederhana
+        st.info(f"Proses SMOTETomek telah menambah data dari {st.session_state.n_asli} menjadi {st.session_state.n_hibrida} baris untuk menyeimbangkan kelas kolektibilitas.")
                     
 # ==========================================
 # LAMAN 3: PREDIKSI & OUTPUT
