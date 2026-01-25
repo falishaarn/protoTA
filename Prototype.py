@@ -241,7 +241,8 @@ if 'train_finished' in st.session_state and st.session_state.train_finished:
         c2.metric("Data Sebelum Upsampling", f"{st.session_state.n_asli} baris")
         c3.metric("Data Sesudah Upsampling", f"{st.session_state.n_hibrida} baris")
         
-        # Informasi tambahan dalam teks sederhana
+        st.write("### Detail Perubahan Jumlah Data Per Kelas")
+        st.table(st.session_state.df_summary)
         st.info(f"Proses SMOTETomek telah menambah data dari {st.session_state.n_asli} menjadi {st.session_state.n_hibrida} baris untuk menyeimbangkan kelas kolektibilitas.")
                     
 # ==========================================
