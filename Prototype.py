@@ -74,7 +74,7 @@ model = load_xgb_model()
 menu = st.session_state.menu
 
 # ==========================================
-# LAMAN 1: HOME (PANDUAN PENGGUNAAN)
+# LAMAN 1: HOME 
 # ==========================================
 if menu == "Home":
     st.title("Sistem Prediksi Kolektibilitas Bank X")
@@ -173,26 +173,35 @@ elif menu == "Model Training":
             
             with st.spinner("Sedang menyeimbangkan dan membersihkan data..."):
                 try:
-                    X = pd.DataFrame()
-                    X['FCode'] = df_new['FCode'].apply(lambda x: fcode_list.index(x)+1 if x in fcode_list else 1)
-                    X['effRate'] = df_new['effRate']
-                    X['OS (Category)'] = df_new['OS'].apply(lambda x: get_qcut_label(x, df_ref['OS']))
-                    X['Disb (Category)'] = df_new['Disb'].apply(lambda x: get_qcut_label(x, df_ref['Disb']))
-                    X['Saldo (Category)'] = df_new['Saldo_Rekening'].apply(lambda x: get_qcut_label(x, df_ref['Saldo_Rekening']))
-                    X['Angsuran (Category)'] = df_new['Angsuran'].apply(lambda x: get_qcut_label(x, df_ref['Angsuran']))
-                    
-                    df_new['MatDate'] = pd.to_datetime(df_new['MatDate'])
-                    st_raw = (df_new['MatDate'] - pd.to_datetime('2025-12-31')).dt.days / 30
-                    X['Sisa_Tenor (Category)'] = st_raw.apply(lambda x: get_qcut_label(max(0, x), df_ref['Sisa_Tenor_Ref']))
-                    
+                    # --- (Bagian penyiapan DataFrame X tetap sama sampai penentuan y) ---
                     y = df_new['Collectibility'] - 1 
+
+                    # 1. TAMBAHKAN VALIDASI JUMLAH DATA
+                    if len(df_new) < 10:
+                        st.error("Data terlalu sedikit untuk melakukan training. Minimal dibutuhkan 10 sampel data.")
+                        st.stop()
 
                     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)
                     
-                    smt = SMOTETomek(random_state=42)
+                    # 2. UBAH BAGIAN SMOTETOMEK JADI DINAMIS (Solusi Error Neighbors)
+                    # Hitung sampel terkecil di tiap kelas pada data training
+                    min_samples = y_train.value_counts().min()
+                    
+                    # Tentukan k_neighbors (SMOTE butuh minimal 2 sampel per kelas)
+                    if min_samples < 2:
+                        st.error("Gagal: Ada kelas kolektibilitas yang hanya memiliki 1 data. SMOTE butuh minimal 2 data per kelas.")
+                        st.stop()
+                    
+                    # n_neighbors default adalah 5, tapi harus lebih kecil dari min_samples
+                    n_neigh = min(5, min_samples - 1)
+                    
+                    # Definisikan SMOTE dengan k_neighbors yang dinamis
+                    smote_dist = SMOTE(k_neighbors=n_neigh, random_state=42)
+                    smt = SMOTETomek(smote=smote_dist, random_state=42)
+                    
                     X_train_res, y_train_res = smt.fit_resample(X_train, y_train)
                     
-                    new_model = xgb.XGBClassifier(n_estimators=100, learning_rate=0.1, random_state=42)
+                    new_model = xgb.XGBClassifier('gamma': 0, 'learning_rate': 0.05, 'max_depth': 8, 'min_child_weight': 3, random_state=42)
                     new_model.fit(X_train_res, y_train_res)
                     
                     y_pred = new_model.predict(X_test)
