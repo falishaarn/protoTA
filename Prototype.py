@@ -228,15 +228,12 @@ elif menu == "Model Training":
                     st.session_state.n_hibrida = len(X_train_res)
                     
                     new_model.save_model('model_xgb_best.json')
-                    
-                    st.success("Training Selesai!")
 
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
 
 if 'train_finished' in st.session_state and st.session_state.train_finished:
-        st.divider()
-        st.success("✅ Pelatihan Model Selesai")
+        st.success("Pelatihan Model Selesai")
         
         # Menampilkan perbandingan jumlah data sebelum dan sesudah upsampling
         c1, c2, c3 = st.columns(3)
