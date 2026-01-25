@@ -105,10 +105,9 @@ if menu == "Home":
     
     # Ringkasan Status Sistem
     st.subheader("📊 Status Sistem Saat Ini")
-    c1, c2, c3 = st.columns(3)
+    c1, c2 = st.columns(2)
     c1.metric("Data Referensi", f"{len(df_ref):,}")
     c2.metric("Algoritma Utama", "XGBoost")
-    c3.metric("Status Koneksi", "Online (GitHub)")
     
 # ==========================================
 # LAMAN 2: TRAINING MODEL
