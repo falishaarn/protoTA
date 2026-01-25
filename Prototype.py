@@ -267,6 +267,29 @@ elif menu == "Prediction & Output":
 
     with t2:
         st.subheader("Upload Batch File (CSV)")
+        with st.expander("Lihat Contoh Format Data & Download Template"):
+            st.write("Pastikan file CSV Anda memiliki urutan kolom dan format seperti di bawah ini:")
+            
+            df_contoh = pd.DataFrame({
+                "FCode": ["CA001", "KJ001", "KP007"],
+                "effRate": [11.5, 12.0, 10.5],
+                "OS": [15000000, 200000000, 5000000],
+                "Disb": [20000000, 250000000, 10000000],
+                "Saldo_Rekening": [1500000, 5000000, 200000],
+                "Angsuran": [750000, 4500000, 500000],
+                "MatDate": ["2026-12-31", "2027-06-15", "2026-01-20"]
+            })
+            
+            st.table(df_contoh)
+            
+            csv_template = df_contoh.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Download Template CSV",
+                data=csv_template,
+                file_name='template_batch_kolektibilitas.csv',
+                mime='text/csv',
+            )
+       
         st.info("Pastikan CSV memiliki kolom: `FCode`, `effRate`, `OS`, `Disb`, `Saldo_Rekening`, `Angsuran`, `MatDate` (Format: YYYY-MM-DD)")
         
         up_file = st.file_uploader("Pilih file CSV", type="csv")
