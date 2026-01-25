@@ -79,7 +79,7 @@ menu = st.session_state.menu
 if menu == "Home":
     st.title("Sistem Prediksi Kolektibilitas Bank X")
     
-    st.markdown("###Langkah Penggunaan Sistem")
+    st.markdown("### Langkah Penggunaan Sistem")
     
     col_step1, col_step2 = st.columns(2)
     
