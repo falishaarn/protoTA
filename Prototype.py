@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 from imblearn.combine import SMOTETomek
 from imblearn.over_sampling import SMOTE
+import os
 
 # --- CONFIG ---
 st.set_page_config(page_title="Credit Collectibility Predictor", layout="wide")
@@ -40,9 +41,14 @@ def load_ref():
 @st.cache_resource
 def load_xgb_model():
     model = xgb.XGBClassifier()
-    # Pastikan nama file sesuai dengan yang kamu save di notebook
-    model.load_model('model_xgb_best.json') 
-    return model
+    # Build absolute path to the model file
+    base_path = os.path.dirname(__file__)
+    model_path = os.path.join(base_path, 'model_xgb_best.json')
+    
+    if os.path.exists(model_path):
+        model.load_model(model_path)
+        return model
+    return None
 
 fcode_list = ["CA001", "CCB03", "CS0I1", "KJ001", "KJ002", "KJ003", "KJ004", "KJ006", "KJ007", "KK0A5", "KK0B5", "KP001", "KP003", "KP007", "KP07A", "MG001", "MJ008", "RK007"]
 
@@ -241,6 +247,7 @@ elif menu == "Model Training":
                     st.session_state.n_hibrida = len(X_train_res)
                     
                     new_model.save_model('model_xgb_best.json')
+                    st.cache_resource.clear()
 
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
@@ -263,6 +270,10 @@ elif menu == "Model Training":
 # LAMAN 3: PREDIKSI & OUTPUT
 # ==========================================
 elif menu == "Prediction & Output":
+    if menu == "Prediction & Output":
+    if model is None:
+        st.warning("⚠️ No trained model found. Please go to **Model Training** first to generate the model.")
+    else:
     st.title("Prediksi Kolektibilitas")
     t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
     
