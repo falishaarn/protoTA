@@ -273,8 +273,8 @@ elif menu == "Prediction & Output":
     if model is None:
         st.warning("No trained model found. Please go to **Model Training** first to generate the model.")
     else:
-    st.title("Prediksi Kolektibilitas")
-    t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
+        st.title("Prediksi Kolektibilitas")
+        t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
     
     with t1:
         with st.form("form_p"):
