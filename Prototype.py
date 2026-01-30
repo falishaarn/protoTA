@@ -270,9 +270,8 @@ elif menu == "Model Training":
 # LAMAN 3: PREDIKSI & OUTPUT
 # ==========================================
 elif menu == "Prediction & Output":
-    if menu == "Prediction & Output":
     if model is None:
-        st.warning("⚠️ No trained model found. Please go to **Model Training** first to generate the model.")
+        st.warning("No trained model found. Please go to **Model Training** first to generate the model.")
     else:
     st.title("Prediksi Kolektibilitas")
     t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
