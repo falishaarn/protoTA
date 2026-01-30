@@ -40,15 +40,24 @@ def load_ref():
 
 @st.cache_resource
 def load_xgb_model():
-    model = xgb.XGBClassifier()
-    # Build absolute path to the model file
     base_path = os.path.dirname(__file__)
     model_path = os.path.join(base_path, 'model_xgb_best.json')
     
+    model = xgb.XGBClassifier()
+    
     if os.path.exists(model_path):
-        model.load_model(model_path)
-        return model
+        try:
+            model.load_model(model_path)
+            return model
+        except Exception as e:
+            # This catches version mismatches or corrupted files
+            st.sidebar.error(f"Error loading model: {e}")
+            return None
+    
     return None
+
+# Load the model globally
+model = load_xgb_model()
 
 fcode_list = ["CA001", "CCB03", "CS0I1", "KJ001", "KJ002", "KJ003", "KJ004", "KJ006", "KJ007", "KK0A5", "KK0B5", "KP001", "KP003", "KP007", "KP07A", "MG001", "MJ008", "RK007"]
 
@@ -247,7 +256,9 @@ elif menu == "Model Training":
                     st.session_state.n_hibrida = len(X_train_res)
                     
                     new_model.save_model('model_xgb_best.json')
-                    st.cache_resource.clear()
+                    st.cache_resource.clear() 
+                    st.success("Model berhasil disimpan!")
+                    st.rerun()
 
                 except Exception as e:
                     st.error(f"Gagal memproses: {e}")
@@ -271,10 +282,11 @@ elif menu == "Model Training":
 # ==========================================
 elif menu == "Prediction & Output":
     if model is None:
-        st.warning("No trained model found. Please go to **Model Training** first to generate the model.")
-    else:
-        st.title("Prediksi Kolektibilitas")
-        t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
+        st.warning("Model belum tersedia. Silakan ke menu **Model Training** terlebih dahulu.")
+        st.stop()
+        
+    st.title("Prediksi Kolektibilitas")
+    t1, t2 = st.tabs(["Input Tunggal", "Upload Batch"])
     
     with t1:
         with st.form("form_p"):
