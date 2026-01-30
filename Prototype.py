@@ -40,6 +40,7 @@ def load_ref():
 
 @st.cache_resource
 def load_xgb_model():
+    # Menggunakan path absolut agar aman di server Linux
     base_path = os.path.dirname(__file__)
     model_path = os.path.join(base_path, 'model_xgb_best.json')
     
@@ -50,11 +51,12 @@ def load_xgb_model():
             model.load_model(model_path)
             return model
         except Exception as e:
-            # This catches version mismatches or corrupted files
-            st.sidebar.error(f"Error loading model: {e}")
+            # Jika file korup/error, aplikasi tetap jalan tapi model jadi None
             return None
-    
     return None
+
+# Inisialisasi awal
+model = load_xgb_model()
 
 # Load the model globally
 model = load_xgb_model()
@@ -256,8 +258,8 @@ elif menu == "Model Training":
                     st.session_state.n_hibrida = len(X_train_res)
                     
                     new_model.save_model('model_xgb_best.json')
-                    st.cache_resource.clear() 
-                    st.success("Model berhasil disimpan!")
+                    st.cache_resource.clear()
+                    st.success("Model berhasil diperbarui dan dimuat ke sistem!")
                     st.rerun()
 
                 except Exception as e:
